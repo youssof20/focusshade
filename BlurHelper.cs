@@ -14,20 +14,29 @@ public static class BlurHelper
     /// </summary>
     public static BitmapSource? CaptureAndBlur(Rect bounds, int blurRadiusPx)
     {
+        Log.Info($"[BlurHelper] CaptureAndBlur enter bounds=({bounds.X},{bounds.Y},{bounds.Width},{bounds.Height}) blur={blurRadiusPx}");
         int w = (int)Math.Ceiling(bounds.Width);
         int h = (int)Math.Ceiling(bounds.Height);
-        if (w <= 0 || h <= 0) return null;
+        if (w <= 0 || h <= 0) { Log.Info("[BlurHelper] CaptureAndBlur: zero size, return null"); return null; }
 
+        Log.Info($"[BlurHelper] CaptureAndBlur: new Bitmap {w}x{h}");
         using var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+        Log.Info("[BlurHelper] CaptureAndBlur: CopyFromScreen");
         using (var g = Graphics.FromImage(bmp))
         {
             g.CopyFromScreen((int)bounds.X, (int)bounds.Y, 0, 0, new System.Drawing.Size(w, h));
         }
 
         if (blurRadiusPx > 0)
+        {
+            Log.Info("[BlurHelper] CaptureAndBlur: ApplyBoxBlur");
             ApplyBoxBlur(bmp, blurRadiusPx);
+        }
 
-        return ToBitmapSource(bmp);
+        Log.Info("[BlurHelper] CaptureAndBlur: ToBitmapSource");
+        var result = ToBitmapSource(bmp);
+        Log.Info("[BlurHelper] CaptureAndBlur exit");
+        return result;
     }
 
     private static void ApplyBoxBlur(Bitmap bmp, int radius)
@@ -87,6 +96,7 @@ public static class BlurHelper
 
     private static BitmapSource ToBitmapSource(Bitmap bmp)
     {
+        Log.Info("[BlurHelper] ToBitmapSource enter");
         var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
         var data = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
         try
@@ -98,6 +108,7 @@ public static class BlurHelper
             wb.WritePixels(new Int32Rect(0, 0, bmp.Width, bmp.Height), buffer, data.Stride, 0);
             wb.Unlock();
             wb.Freeze();
+            Log.Info("[BlurHelper] ToBitmapSource exit");
             return wb;
         }
         finally

@@ -10,6 +10,7 @@ public class ShakeDetector : IDisposable
     private const int TickMs = 50;
     private int _distanceThresholdPx = 500;
     private bool _disposed;
+    private int _tickCount;
 
     public event Action? ShakeDetected;
 
@@ -29,7 +30,9 @@ public class ShakeDetector : IDisposable
 
     public void Start()
     {
+        Log.Info("[ShakeDetector] Start()");
         _history.Clear();
+        _tickCount = 0;
         _timer.Start();
     }
 
@@ -41,30 +44,43 @@ public class ShakeDetector : IDisposable
 
     private void Tick(object? sender, EventArgs e)
     {
-        if (!NativeMethods.GetCursorPos(out var pt))
-            return;
-
-        long now = Environment.TickCount64;
-        _history.Enqueue((now, pt));
-
-        while (_history.Count > 0 && now - _history.Peek().timeMs > WindowMs)
-            _history.Dequeue();
-
-        if (_history.Count < 2) return;
-
-        double totalDistance = 0;
-        var arr = _history.ToArray();
-        for (int i = 1; i < arr.Length; i++)
+        try
         {
-            var a = arr[i - 1].point;
-            var b = arr[i].point;
-            totalDistance += Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+            _tickCount++;
+            if (_tickCount % 20 == 1)
+                Log.Info($"[ShakeDetector] Tick #{_tickCount}");
+            if (_disposed) return;
+            if (!NativeMethods.GetCursorPos(out var pt))
+                return;
+
+            long now = Environment.TickCount64;
+            _history.Enqueue((now, pt));
+
+            while (_history.Count > 0 && now - _history.Peek().timeMs > WindowMs)
+                _history.Dequeue();
+
+            if (_history.Count < 2) return;
+
+            double totalDistance = 0;
+            var arr = _history.ToArray();
+            for (int i = 1; i < arr.Length; i++)
+            {
+                var a = arr[i - 1].point;
+                var b = arr[i].point;
+                totalDistance += Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+            }
+
+            if (totalDistance >= _distanceThresholdPx)
+            {
+                Log.Info($"[ShakeDetector] ShakeDetected! distance={totalDistance:F0}");
+                _history.Clear();
+                try { ShakeDetected?.Invoke(); }
+                catch (Exception ex) { Log.Error("ShakeDetected handler failed", ex); }
+            }
         }
-
-        if (totalDistance >= _distanceThresholdPx)
+        catch (Exception ex)
         {
-            _history.Clear();
-            ShakeDetected?.Invoke();
+            Log.Error("ShakeDetector.Tick failed", ex);
         }
     }
 

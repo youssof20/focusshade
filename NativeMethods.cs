@@ -126,6 +126,9 @@ internal static class NativeMethods
     [DllImport(User32, CharSet = CharSet.Unicode)]
     public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
+    [DllImport(User32, CharSet = CharSet.Unicode)]
+    public static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
+
     #endregion
 
     #region Win event hook
