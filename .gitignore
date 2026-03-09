@@ -1,0 +1,33 @@
+# Build outputs — do not commit
+bin/
+obj/
+**/bin/
+**/obj/
+[Dd]ebug/
+[Rr]elease/
+[Bb]uild/
+[Oo]ut/
+publish/
+**/win-x64/
+**/publish/
+
+# Build artifacts
+*.exe
+*.dll
+*.pdb
+*.cache
+
+# User / IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs (local)
+*.log
+focusshade.log
+
+# OS
+Thumbs.db
+.DS_Store
