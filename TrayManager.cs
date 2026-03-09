@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace FocusShade;
@@ -9,6 +10,11 @@ public sealed class TrayManager : IDisposable
     private readonly Action _openSettings;
     private NotifyIcon? _notifyIcon;
     private ToolStripMenuItem? _toggleItem;
+    private Bitmap? _bmFilled;
+    private Icon? _iconFilled;
+    private Bitmap? _bmRing;
+    private Icon? _iconRing;
+    private System.Windows.Forms.Timer? _clickTimer;
     private bool _disposed;
 
     public TrayManager(App app, OverlayManager overlayManager, Action openSettings)
@@ -20,9 +26,12 @@ public sealed class TrayManager : IDisposable
 
     public void Show()
     {
+        (_bmFilled, _iconFilled) = TrayIconHelper.CreateFilledCircleIcon();
+        (_bmRing, _iconRing) = TrayIconHelper.CreateRingIcon();
+
         _notifyIcon = new NotifyIcon
         {
-            Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? string.Empty) ?? SystemIcons.Application,
+            Icon = _overlayManager.IsEnabled ? _iconFilled : _iconRing,
             Visible = true,
             Text = "FocusShade"
         };
@@ -35,7 +44,18 @@ public sealed class TrayManager : IDisposable
         menu.Items.Add("Quit", null, (_, _) => _app.RequestQuit());
         _notifyIcon.ContextMenuStrip = menu;
 
-        _notifyIcon.DoubleClick += (_, _) => Toggle();
+        _clickTimer = new System.Windows.Forms.Timer { Interval = 250 };
+        _clickTimer.Tick += (_, _) =>
+        {
+            _clickTimer.Stop();
+            _openSettings();
+        };
+        _notifyIcon.Click += (_, _) => _clickTimer?.Start();
+        _notifyIcon.DoubleClick += (_, _) =>
+        {
+            _clickTimer?.Stop();
+            Toggle();
+        };
         SetActiveState(_overlayManager.IsEnabled);
     }
 
@@ -48,23 +68,31 @@ public sealed class TrayManager : IDisposable
         NativeMethods.MessageBeep(0);
     }
 
-    private void OpenSettings()
-    {
-        _openSettings();
-    }
-
     public void SetActiveState(bool active)
     {
         if (_toggleItem != null)
             _toggleItem.Text = GetToggleText(active);
         _notifyIcon!.Text = "FocusShade" + (active ? " (active)" : "");
+        if (_notifyIcon != null && _iconFilled != null && _iconRing != null)
+            _notifyIcon.Icon = active ? _iconFilled : _iconRing;
     }
 
     public void Dispose()
     {
         if (_disposed) return;
+        _clickTimer?.Stop();
+        _clickTimer?.Dispose();
+        _clickTimer = null;
         _notifyIcon?.Dispose();
         _notifyIcon = null;
+        _iconFilled?.Dispose();
+        _iconFilled = null;
+        _iconRing?.Dispose();
+        _iconRing = null;
+        _bmFilled?.Dispose();
+        _bmFilled = null;
+        _bmRing?.Dispose();
+        _bmRing = null;
         _disposed = true;
         GC.SuppressFinalize(this);
     }
