@@ -12,6 +12,8 @@ public class OverlayManager : IDisposable
     private NativeMethods.RECT _lastForegroundRect;
     private bool _enabled;
     private bool _disposed;
+    private System.Windows.Threading.DispatcherTimer? _foregroundDebounce;
+    private const int ForegroundDebounceMs = 150;
     private static readonly string[] ExcludedClasses = { "Progman", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Windows.UI.Core.CoreWindow" };
 
     public OverlayManager(SettingsModel settings)
@@ -61,16 +63,42 @@ public class OverlayManager : IDisposable
             if (app == null) { Log.Info("[OverlayManager] WinEventCallback: app null, return"); return; }
             if (eventType == NativeMethods.EVENT_SYSTEM_FOREGROUND)
             {
-                Log.Info($"[OverlayManager] WinEventCallback FOREGROUND hwnd={hwnd}, queuing SafeUpdateOverlays");
+                if (ShouldExclude(hwnd))
+                    return;
                 _lastForegroundHwnd = hwnd;
-                if (NativeMethods.GetWindowRect(hwnd, out _lastForegroundRect))
-                    app.Dispatcher.BeginInvoke(() => SafeUpdateOverlays());
+                if (!NativeMethods.GetWindowRect(hwnd, out _lastForegroundRect))
+                    return;
+                DebouncedQueueSafeUpdateOverlays(app);
             }
         }
         catch (Exception ex)
         {
             Log.Error("WinEventCallback error", ex);
         }
+    }
+
+    private void DebouncedQueueSafeUpdateOverlays(System.Windows.Application app)
+    {
+        app.Dispatcher.BeginInvoke(() =>
+        {
+            if (_disposed) return;
+            if (_foregroundDebounce == null)
+            {
+                _foregroundDebounce = new System.Windows.Threading.DispatcherTimer(
+                    System.Windows.Threading.DispatcherPriority.Background,
+                    app.Dispatcher)
+                {
+                    Interval = TimeSpan.FromMilliseconds(ForegroundDebounceMs)
+                };
+                _foregroundDebounce.Tick += (_, _) =>
+                {
+                    _foregroundDebounce?.Stop();
+                    SafeUpdateOverlays();
+                };
+            }
+            _foregroundDebounce.Stop();
+            _foregroundDebounce.Start();
+        });
     }
 
     private void EnsureOverlays()
@@ -237,6 +265,8 @@ public class OverlayManager : IDisposable
     {
         Log.Info("[OverlayManager] Dispose()");
         if (_disposed) return;
+        _foregroundDebounce?.Stop();
+        _foregroundDebounce = null;
         if (_winEventHookForeground != IntPtr.Zero)
             NativeMethods.UnhookWinEvent(_winEventHookForeground);
         _winEventHookForeground = IntPtr.Zero;

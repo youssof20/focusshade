@@ -7,6 +7,8 @@ internal static class NativeMethods
 {
     private const string User32 = "user32.dll";
     private const string Gdi32 = "gdi32.dll";
+    private const string Kernel32 = "kernel32.dll";
+    private const string DbgHelp = "dbghelp.dll";
 
     #region Structs
 
@@ -195,6 +197,30 @@ internal static class NativeMethods
 
     [DllImport(User32)]
     public static extern void MessageBeep(uint uType);
+
+    #endregion
+
+    #region Minidump (CrashDump)
+
+    public const uint GENERIC_WRITE = 0x40000000;
+    public const uint FILE_SHARE_WRITE = 0x00000002;
+    public const uint CREATE_ALWAYS = 2;
+    public const uint INVALID_HANDLE_VALUE = 0xFFFFFFFF;
+
+    [DllImport(Kernel32)]
+    public static extern IntPtr GetCurrentProcess();
+
+    [DllImport(Kernel32, CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr CreateFile(string lpFileName, uint dwDesiredAccess, uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+    [DllImport(Kernel32, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool CloseHandle(IntPtr hObject);
+
+    // MiniDumpWithDataSegs = 1, MiniDumpWithFullMemory = 2. Use 1 for smaller dumps; use 2 for full memory.
+    [DllImport(DbgHelp, SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool MiniDumpWriteDump(IntPtr hProcess, uint ProcessId, IntPtr hFile, uint DumpType, IntPtr ExceptionParam, IntPtr UserStreamParam, IntPtr CallbackParam);
 
     #endregion
 }

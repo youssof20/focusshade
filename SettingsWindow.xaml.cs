@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Controls;
@@ -177,7 +178,7 @@ public partial class SettingsWindow : Window
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, true);
             if (key == null) return;
             if (_settings.StartWithWindows)
-                key.SetValue(AppName, Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location);
+                key.SetValue(AppName, Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "FocusShade.exe"));
             else
                 key.DeleteValue(AppName, false);
         }

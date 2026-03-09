@@ -20,18 +20,25 @@ public partial class App : System.Windows.Application
         {
             var ex = (Exception)args.ExceptionObject;
             Log.Error("Unhandled exception", ex);
-            ShowError("Unhandled exception", ex);
+            var dumpPath = CrashDump.WriteMinidump();
+            if (!string.IsNullOrEmpty(dumpPath)) Log.Info($"Crash dump written: {dumpPath}");
+            ShowError("Unhandled exception", ex, dumpPath);
         };
         DispatcherUnhandledException += (_, args) =>
         {
             Log.Error("Dispatcher unhandled exception", args.Exception);
-            ShowError("FocusShade error", args.Exception);
+            var dumpPath = CrashDump.WriteMinidump();
+            if (!string.IsNullOrEmpty(dumpPath)) Log.Info($"Crash dump written: {dumpPath}");
+            ShowError("FocusShade error", args.Exception, dumpPath);
             args.Handled = true;
         };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             Log.Error("Unobserved task exception", args.Exception);
-            ShowError("Background task error", args.Exception?.GetBaseException() ?? args.Exception);
+            var ex = args.Exception?.GetBaseException() ?? args.Exception ?? new Exception("Unknown");
+            var dumpPath = CrashDump.WriteMinidump();
+            if (!string.IsNullOrEmpty(dumpPath)) Log.Info($"Crash dump written: {dumpPath}");
+            ShowError("Background task error", ex, dumpPath);
             args.SetObserved();
         };
 
@@ -139,14 +146,15 @@ public partial class App : System.Windows.Application
         Shutdown();
     }
 
-    private static void ShowError(string title, Exception ex)
+    private static void ShowError(string title, Exception ex, string? dumpPath = null)
     {
         try
         {
             var msg = ex?.ToString() ?? "Unknown error";
             var logPath = Log.LogFilePath;
+            var dumpLine = string.IsNullOrEmpty(dumpPath) ? "" : $"\n\nCrash dump: {dumpPath}";
             System.Windows.MessageBox.Show(
-                $"{title}\n\n{ex?.Message}\n\nLog: {logPath}\n\nDetails:\n{msg}",
+                $"{title}\n\n{ex?.Message}\n\nLog: {logPath}{dumpLine}\n\nDetails:\n{msg}",
                 "FocusShade",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

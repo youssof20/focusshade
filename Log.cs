@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Text;
 
 namespace FocusShade;
@@ -46,13 +45,6 @@ internal static class Log
             var baseDir = AppContext.BaseDirectory;
             if (!string.IsNullOrEmpty(baseDir) && Directory.Exists(baseDir))
                 return Path.Combine(baseDir, "focusshade.log");
-        }
-        catch { }
-        try
-        {
-            var exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            if (!string.IsNullOrEmpty(exeDir))
-                return Path.Combine(exeDir, "focusshade.log");
         }
         catch { }
         return Path.Combine(Path.GetTempPath(), "FocusShade_focusshade.log");
